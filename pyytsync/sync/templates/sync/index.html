@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <title>My test page</title>
+    <script src="https://www.youtube.com/player_api?key="></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+    <script type="text/javascript">
+        var player;
+        var start_time = Date.now();
+        var end_time = Date.now();
+        var prev_server_time = 0;
+        var video_id;
+
+        function onYouTubePlayerAPIReady() {
+          player = new YT.Player('player', {
+            height: '360',
+            width: '640',
+            videoId: '{{ video_id }}',
+            playerVars: {
+                'autoplay': 1,
+                'mute': 1,
+                'controls': 1,
+                'disablekb': 1
+            },
+            events: {
+              'onReady': onPlayerReady,
+              'onStateChange': onPlayerStateChange
+            }
+          });
+        }
+
+        function onPlayerReady(event) {
+            video_id = getVid(function( data ) {
+                    return data['video_id'];
+                }
+            );
+            player.loadVideoById(video_id);
+            getCurrentTime(function(data){
+                var response = data;
+                current_time_server = response['video_time'];
+                prev_server_time = current_time_server;
+                //start_time = new Date(current_time_server);
+                player.seekTo(current_time_server);
+            });
+        }
+
+        function onPlayerStateChange(event) {
+        }
+
+        function sendCurrentTime(callback) {
+            $.ajax({
+                type:"GET",
+                url: "/sync/set-vid-time",
+                data: {
+                    video_time: player.getCurrentTime()
+                },
+                success: callback
+            });
+        }
+
+        function getVid(callback) {
+            $.ajax({
+                type:"GET",
+                url: "/sync/get-vid-id",
+                data: {},
+                dataType: "json",
+                success: callback
+            });
+        }
+
+        function getCurrentTime(callback) {
+            return $.ajax({
+                type:"GET",
+                url: "/sync/get-vid-time",
+                data: {},
+                dataType: "json",
+                success: callback
+            });
+        }
+
+        function updatePlayerTime() {
+            getCurrentTime(function(data){
+                var response = data;
+                var allowed_delta = 5.0
+                end_time = Date.now();
+                elapsed_time = (end_time - start_time) / 1000;
+                current_time_server = response['video_time'];
+                if (prev_server_time != current_time_server) {
+                    prev_server_time = current_time_server; 
+                    start_time = end_time;
+                    console.log("server time changed. adjusting.");
+                    player.seekTo(current_time_server);
+                    return;
+                }
+                console.log("server time: " + current_time_server);
+                current_time_local = player.getCurrentTime();
+                delta = Math.abs(current_time_local - elapsed_time - current_time_server);
+                console.log("elapsed time: " + elapsed_time);
+                console.log("time delta: " + delta);
+                console.log("start time:" + start_time);
+                if (delta > allowed_delta) {
+                    console.log("time delta greater than allowed delta. local time changed.");
+                    start_time = end_time;
+                    sendCurrentTime();
+                }
+            });
+            getVid(function(data) {
+                vid = data['video_id'];
+                if (vid != video_id) {
+                    video_id = vid;
+                    player.loadVideoById(video_id);
+                }
+            });
+        }
+
+        var intervalPlayerTime = window.setInterval(function(){
+            updatePlayerTime(); 
+            console.log("running interval");
+        }, 1000);
+
+        window.addEventListener("load", () => {
+            var inputBox = document.getElementById("input-box");
+            inputBox.addEventListener("keydown", checkEnter);
+        });
+
+        function checkEnter(event) {
+            if (event.keyCode == 13) {
+              // The user pressed the enter key. Call your function here.
+                var inputBox = document.getElementById("input-box");
+                player.loadVideoById(inputBox.value);
+                $.ajax({
+                    type:"GET",
+                    url: "/sync/set-vid-id",
+                    data: {
+                        video_id: inputBox.value
+                    },
+                    success: function( data ) {
+                        alert("Sent " + data['video_id'] + " to the server!");
+                    }
+                });
+            }
+        }
+    </script>
+  </head>
+  <body>
+      <input type="text" id="input-box">
+      <div id="player"></div>
+  </body>
+  
+</html>
