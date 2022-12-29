@@ -148,15 +148,19 @@
         var inputBox = document.getElementById("input-box");
         url = inputBox.value;
         let video_id = youtube_parser(url);
-        $.ajax({
-            type:"GET",
-            url: "/add-vid-to-playlist",
-            data: {
-                video_id: video_id
-            },
-            success: function( data ) {
-                getPlaylist();
-            }
+        $.get("https://www.googleapis.com/youtube/v3/videos?part=snippet&id=" + video_id + "&key=" + "{{ YOUTUBE_DATA_API_KEY }}", function(data) {
+            let video_title = data.items[0].snippet.title;
+            $.ajax({
+                type:"GET",
+                url: "/add-vid-to-playlist",
+                data: {
+                    video_id: video_id,
+                    video_title: video_title
+                },
+                success: function( data ) {
+                    getPlaylist();
+                }
+            });
         });
     }
 
@@ -180,27 +184,33 @@
         clearPlaylist();
         for (let i = 0; i < list.length; i++) {
             let v = list[i]['video_id'];
+            let video_title = list[i]['video_title'];
             let id = list[i]['id'];
             const item = document.createElement('div');
             item.setAttribute('obj-id', id);
             item.setAttribute('video-id', v);
-            item.className = "list-group-item list-group-item-action bg-dark";
+            item.className = "list-group-item list-group-item-action bg-dark border border-secondary";
             const itemRow = document.createElement('row');
             itemRow.className = "d-flex";
             const textDiv = document.createElement('div');
-            textDiv.className = "col-sm-6";
+            textDiv.className = "col-sm-10";
             const textThumbnail = document.createElement('img');
             textThumbnail.className = "float-start";
             textThumbnail.setAttribute("src", "//img.youtube.com/vi/"+v+"/default.jpg");
-            textThumbnail.setAttribute("width", "80");
-            textThumbnail.setAttribute("height", "45");
+            textThumbnail.setAttribute("width", "150");
+            textThumbnail.setAttribute("height", "84.38");
+            const titleP = document.createElement('p');
+            titleP.className = "text-light";
+            const title = document.createTextNode(video_title);
+            titleP.appendChild(title);
             textDiv.appendChild(textThumbnail);
+            textDiv.appendChild(titleP);
             itemRow.appendChild(textDiv);
             const buttonDiv = document.createElement('div');
-            buttonDiv.className = "col-sm-6";
+            buttonDiv.className = "col-sm-2";
             const buttonAdd = document.createElement('button');
-            buttonAdd.className = "btn btn-outline-light float-end";
-            buttonAdd.innerHTML = `{% bs_icon 'play-circle' size='1.1em' %}`;
+            buttonAdd.className = "btn btn-outline-light";
+            buttonAdd.innerHTML = `{% bs_icon 'play-circle' size='1.0em' %}`;
             buttonAdd.setAttribute('obj-id', id);
             buttonAdd.setAttribute('video-id', v);
             buttonAdd.onclick = function() {
@@ -226,8 +236,8 @@
                 });
             };
             const buttonDel = document.createElement('button');
-            buttonDel.className = "btn btn-outline-light float-end";
-            buttonDel.innerHTML = `{% bs_icon 'x-circle' size='1.1em' %}`;
+            buttonDel.className = "btn btn-outline-light";
+            buttonDel.innerHTML = `{% bs_icon 'x-circle' size='1.0em' %}`;
             buttonDel.setAttribute('obj-id', id);
             buttonDel.setAttribute('video-id', v);
             buttonDel.onclick = function() {
@@ -270,26 +280,26 @@
 
 
 <div class="d-flex" id="wrapper">
-    <div class="bg-dark border-right vh-100" id="sidebar-wrapper">
-        <div class="sidebar-heading"><p class="text-light bg-dark">pyytsync</p></div>
+    <div class="bg-dark vh-100" id="sidebar-wrapper">
+        <div class="sidebar-heading"><p class="text-light bg-dark p-1">pyytsync</p></div>
         <div class="list-group list-group-flush overflow-auto h-100" id="playlist">
         </div>
     </div>
     <div id="page-content-wrapper" class="bg-dark">
-        <nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark p-3 ps-0">
             <div class="input-group">
               <input type="text" class="form-control" placeholder="Video-URL" aria-label="Recipient's username" aria-describedby="button-addon2" id="input-box">
               <button class="btn btn-outline-secondary" type="button" id="input-box-button">Add video</button>
             </div>
-            <ul class="navbar-nav ml-auto mt-2 mt-lg-0">
-                <li class="nav-item">
+            <ul class="navbar-nav mr-auto mt-1 mt-lg-0">
+                <li class="nav-item ps-2">
                     <a class="nav-link" href="https://github.com/rndxelement/pyytsync" target="_blank" rel="noopener noreferrer">
                     {% bs_icon 'github' size='2em' %}
                     </a>
                 </li>
             </ul>
         </nav>
-        <div class="container-fluid bg-dark">
+        <div class="container-fluid bg-dark p-0">
             <div id="player"></div>
         </div>
     </div>

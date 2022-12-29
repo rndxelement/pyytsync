@@ -46,7 +46,8 @@ def get_vid_time(request):
 
 def add_vid_to_playlist(request):
     video_id = request.GET['video_id']
-    playlist_video = PlaylistVideo(video_id = video_id)
+    video_title = request.GET['video_title']
+    playlist_video = PlaylistVideo(video_id = video_id, video_title = video_title)
     playlist_video.save()
     return HttpResponse("Added video to playlist!")
 
