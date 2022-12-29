@@ -56,7 +56,7 @@
         if(event.data === 0) { // finished playing
             $.ajax({
                 type:"GET",
-                url: "/sync/set-next-playlist-video",
+                url: "/set-next-playlist-video",
                 data: {
                 },
             });
@@ -66,7 +66,7 @@
     function sendCurrentTime(callback) {
         $.ajax({
             type:"GET",
-            url: "/sync/set-vid-time",
+            url: "/set-vid-time",
             data: {
                 video_time: player.getCurrentTime()
             },
@@ -77,7 +77,7 @@
     function getVid(callback) {
         $.ajax({
             type:"GET",
-            url: "/sync/get-vid-id",
+            url: "/get-vid-id",
             data: {},
             dataType: "json",
             success: callback
@@ -87,7 +87,7 @@
     function getCurrentTime(callback) {
         return $.ajax({
             type:"GET",
-            url: "/sync/get-vid-time",
+            url: "/get-vid-time",
             data: {},
             dataType: "json",
             success: callback
@@ -150,7 +150,7 @@
         let video_id = youtube_parser(url);
         $.ajax({
             type:"GET",
-            url: "/sync/add-vid-to-playlist",
+            url: "/add-vid-to-playlist",
             data: {
                 video_id: video_id
             },
@@ -163,7 +163,7 @@
     function getPlaylist() {
         $.ajax({
             type:"GET",
-            url: "/sync/get-playlist-videos",
+            url: "/get-playlist-videos",
             data: {
             },
             success: function( data ) {
@@ -206,7 +206,7 @@
             buttonAdd.onclick = function() {
                 $.ajax({
                     type:"GET",
-                    url: "/sync/set-vid-id",
+                    url: "/set-vid-id",
                     data: {
                         video_id: this.getAttribute("video-id")
                     },
@@ -216,7 +216,7 @@
                 });
                 $.ajax({
                     type:"GET",
-                    url: "/sync/remove-vid-from-playlist",
+                    url: "/remove-vid-from-playlist",
                     data: {
                         id: this.getAttribute("obj-id")
                     },
@@ -233,7 +233,7 @@
             buttonDel.onclick = function() {
                 $.ajax({
                     type:"GET",
-                    url: "/sync/remove-vid-from-playlist",
+                    url: "/remove-vid-from-playlist",
                     data: {
                         id: this.getAttribute("obj-id")
                     },
