@@ -189,7 +189,17 @@
             const item = document.createElement('div');
             item.setAttribute('obj-id', id);
             item.setAttribute('video-id', v);
-            item.className = "list-group-item list-group-item-action bg-dark border border-secondary";
+            if (i == 0) {
+                item.className = "list-group-item list-group-item-action bg-dark border border-primary";
+                const nextUpP = document.createElement("p");
+                nextUpP.className = "text-light fs-5";
+                const nextUp = document.createTextNode("Next up:");
+                nextUpP.appendChild(nextUp);
+                item.appendChild(nextUpP);
+            }
+            else {
+                item.className = "list-group-item list-group-item-action bg-dark border border-secondary";
+            }
             const itemRow = document.createElement('row');
             itemRow.className = "d-flex";
             const textDiv = document.createElement('div');
@@ -200,7 +210,7 @@
             textThumbnail.setAttribute("width", "150");
             textThumbnail.setAttribute("height", "84.38");
             const titleP = document.createElement('p');
-            titleP.className = "text-light";
+            titleP.className = "text-light fs-6";
             const title = document.createTextNode(video_title);
             titleP.appendChild(title);
             textDiv.appendChild(textThumbnail);
