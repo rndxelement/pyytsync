@@ -279,6 +279,10 @@
         };
         document.getElementsByTagName("html")[0].setAttribute("data-bs-theme","dark");
         getPlaylist();
+        $("#menu-toggle").click(function(e) {
+          e.preventDefault();
+          $("#wrapper").toggleClass("toggled");
+        });
     });
 
     function checkEnter(event) {
@@ -291,23 +295,26 @@
 
 <div class="d-flex" id="wrapper">
     <div class="bg-dark vh-100" id="sidebar-wrapper">
-        <div class="sidebar-heading"><p class="text-light bg-dark p-1">pyytsync</p></div>
+        <div class="sidebar-heading"><p class="text-light bg-dark p-1"><b>pyytsync</b></p></div>
         <div class="list-group list-group-flush overflow-auto h-100" id="playlist">
         </div>
     </div>
     <div id="page-content-wrapper" class="bg-dark">
-        <nav class="navbar navbar-expand-lg navbar-dark bg-dark p-3 ps-0">
-            <div class="input-group">
-              <input type="text" class="form-control" placeholder="Video-URL" aria-label="Recipient's username" aria-describedby="button-addon2" id="input-box">
-              <button class="btn btn-outline-secondary" type="button" id="input-box-button">Add video</button>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark p-3 pb-0 ps-0">
+            <div class="d-flex">
+                <button class="btn btn-secondary me-1 mb-3" id="menu-toggle">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <button class="navbar-toggler d-none" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                </button>
+                <div class="input-group mb-3">
+                  <input type="text" class="form-control" placeholder="Video-URL" aria-label="Recipient's username" aria-describedby="button-addon2" id="input-box">
+                  <button class="btn btn-outline-secondary" type="button" id="input-box-button">Add video</button>
+                </div>
+                <a class="nav-link mb-3" href="https://github.com/rndxelement/pyytsync" target="_blank" rel="noopener noreferrer">
+                    {% bs_icon 'github' size='1.5em' %}
+                </a>
             </div>
-            <ul class="navbar-nav mr-auto mt-1 mt-lg-0">
-                <li class="nav-item ps-2">
-                    <a class="nav-link" href="https://github.com/rndxelement/pyytsync" target="_blank" rel="noopener noreferrer">
-                    {% bs_icon 'github' size='2em' %}
-                    </a>
-                </li>
-            </ul>
         </nav>
         <div class="container-fluid bg-dark p-0">
             <div id="player"></div>
