@@ -22,6 +22,10 @@ body {
     width: 15rem;
 }
 
+#sidebar-wrapper .card-body {
+    width: 15rem;
+}
+
 #page-content-wrapper {
     min-width: 100vw;
 }
@@ -53,3 +57,17 @@ iframe{
       width: 100%;
       height: 90vh;
 }
+
+body.dragging,
+body.dragging * {
+	cursor: grabbing !important;
+}
+.dragged {
+	position: absolute !important;
+	opacity: 0.6;
+	z-index: 2000;
+}
+.handle {
+	cursor: grab;
+}
+

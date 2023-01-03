@@ -10,7 +10,8 @@
 
 <link rel="stylesheet" href="{{ STATIC_URL }}static/style.css" />
 <script src="https://www.youtube.com/player_api?key={{ YOUTUBE_DATA_API_KEY }}"></script>
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-sortable/0.9.13/jquery-sortable-min.js"></script>
 <script type="text/javascript">
     var player;
     var start_time = Date.now();
@@ -180,44 +181,84 @@
         document.getElementById("playlist").replaceChildren();
     }
 
+    function playlistModified(list) {
+        let titles = document.querySelectorAll(".video-title");
+        console.log("titles:" + titles);
+        let ret = false;
+        titles.forEach((item) => {
+            let cur = item.textContent;
+            cur = cur.replace('Next up:\n', '');
+            console.log("cur:" + cur);
+            let found = false;
+            for (let i = 0; i < list.length; i++) {
+                console.log("[" + cur + "," + list[i]['video_title'] + "]");
+                if (list[i]['video_title'] == cur) {
+                    found = true;
+                    break;
+                }
+            }
+            if (found == false) {
+                ret = true;
+            }
+        });
+        if (ret) {
+            return true;
+        }
+        for (let i = 0; i < list.length; i++) {
+            let found = false;
+            titles.forEach((item) => {
+                if (list[i]['video_title'] == item.textContent.replace('Next up:\n',''))
+                {
+                    found = true;
+                }
+            });
+            if (!found) {
+                return true;
+            }
+        }
+        console.log("Nothing changed. Not building playlist again.");
+        return false;
+    }
+
     function buildPlaylist(list) {
+        //clearPlaylist();
+        if (playlistModified(list) == false) return;
         clearPlaylist();
         for (let i = 0; i < list.length; i++) {
             let v = list[i]['video_id'];
             let video_title = list[i]['video_title'];
             let id = list[i]['id'];
-            const item = document.createElement('div');
+            const item = document.createElement('li');
             item.setAttribute('obj-id', id);
             item.setAttribute('video-id', v);
+            item.className = "sort";
+            const cardDiv = document.createElement('div');
+            cardDiv.className = "card bg-dark mb-1";
+            const cardHeaderDiv = document.createElement('div');
+            cardHeaderDiv.className = "card-header p-2";
+            const rowDiv = document.createElement('div');
+            rowDiv.className = "row form-inline align-items-center";
+            const handleDiv = document.createElement('div');
+            handleDiv.className = "col-sm-1 handle";
+            handleDiv.innerHTML = `{% bs_icon 'grip-vertical' size='1.5em' color='white' %}`;
+            rowDiv.appendChild(handleDiv);
+            const contentDiv = document.createElement('div');
+            contentDiv.className = "col-sm-10";
+            titleP = document.createElement('p');
+            titleP.className = "text-light video-title";
             if (i == 0) {
-                item.className = "list-group-item list-group-item-action bg-dark border border-primary";
-                const nextUpP = document.createElement("p");
-                nextUpP.className = "text-light fs-5";
-                const nextUp = document.createTextNode("Next up:");
-                nextUpP.appendChild(nextUp);
-                item.appendChild(nextUpP);
+                const nextUpB = document.createElement('b');
+                nextUpB.appendChild(document.createTextNode("Next up:\n"));
+                titleP.appendChild(nextUpB);
+                titleP.appendChild(document.createElement('br'));
             }
-            else {
-                item.className = "list-group-item list-group-item-action bg-dark border border-secondary";
-            }
-            const itemRow = document.createElement('row');
-            itemRow.className = "d-flex";
-            const textDiv = document.createElement('div');
-            textDiv.className = "col-sm-10";
-            const textThumbnail = document.createElement('img');
-            textThumbnail.className = "float-start";
-            textThumbnail.setAttribute("src", "//img.youtube.com/vi/"+v+"/default.jpg");
-            textThumbnail.setAttribute("width", "150");
-            textThumbnail.setAttribute("height", "84.38");
-            const titleP = document.createElement('p');
-            titleP.className = "text-light fs-6";
-            const title = document.createTextNode(video_title);
-            titleP.appendChild(title);
-            textDiv.appendChild(textThumbnail);
-            textDiv.appendChild(titleP);
-            itemRow.appendChild(textDiv);
-            const buttonDiv = document.createElement('div');
-            buttonDiv.className = "col-sm-2";
+            titleP.appendChild(document.createTextNode(video_title));
+            contentDiv.appendChild(titleP);
+            const thumbnailImg = document.createElement('img');
+            thumbnailImg.setAttribute("src", "//img.youtube.com/vi/"+v+"/maxresdefault.jpg");
+            thumbnailImg.setAttribute("width", "150");
+            thumbnailImg.setAttribute("height", "84.38");
+            contentDiv.appendChild(thumbnailImg);
             const buttonAdd = document.createElement('button');
             buttonAdd.className = "btn btn-outline-light";
             buttonAdd.innerHTML = `{% bs_icon 'play-circle' size='1.0em' %}`;
@@ -246,7 +287,7 @@
                 });
             };
             const buttonDel = document.createElement('button');
-            buttonDel.className = "btn btn-outline-light";
+            buttonDel.className = "btn btn-outline-light m-2";
             buttonDel.innerHTML = `{% bs_icon 'x-circle' size='1.0em' %}`;
             buttonDel.setAttribute('obj-id', id);
             buttonDel.setAttribute('video-id', v);
@@ -262,10 +303,12 @@
                     }
                 });
             };
-            buttonDiv.appendChild(buttonAdd);
-            buttonDiv.appendChild(buttonDel);
-            itemRow.appendChild(buttonDiv);
-            item.appendChild(itemRow);
+            contentDiv.appendChild(buttonAdd);
+            contentDiv.appendChild(buttonDel);
+            rowDiv.appendChild(contentDiv);
+            cardHeaderDiv.appendChild(rowDiv);
+            cardDiv.appendChild(cardHeaderDiv);
+            item.appendChild(cardDiv);
             document.getElementById("playlist").appendChild(item);
         }
     }
@@ -283,6 +326,21 @@
           e.preventDefault();
           $("#wrapper").toggleClass("toggled");
         });
+        (function($) {
+            $(".sortable").sortable({
+                containerSelector: "ul.sortable",
+                itemSelector: "li.sort",
+                handle: ".handle",
+                placeholder:
+                    '<li><div class="card bg-primary text-white mb-1"><div class="card-header">Drop Here</div></div></li>',
+                distance: 0,
+                onDrop: function($item) {
+                    $item.attr("style", null).removeClass("dragged");
+                    $("body").removeClass("dragging");
+                }
+                });
+        })(jQuery);
+
     });
 
     function checkEnter(event) {
@@ -296,7 +354,11 @@
 <div class="d-flex" id="wrapper">
     <div class="bg-dark vh-100" id="sidebar-wrapper">
         <div class="sidebar-heading"><p class="text-light bg-dark p-1"><b>pyytsync</b></p></div>
-        <div class="list-group list-group-flush overflow-auto h-100" id="playlist">
+        <!-- div class="list-group list-group-flush overflow-auto h-100" id="playlist">
+        </div -->
+        <div class="card-body overflow-auto h-100">
+            <ul class="list-unstyled sortable" id="playlist">
+            </ul>
         </div>
     </div>
     <div id="page-content-wrapper" class="bg-dark">
