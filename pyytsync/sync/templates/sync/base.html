@@ -200,16 +200,13 @@
     }
 
     function buildPlaylist(list, force_rebuild=false) {
-        //clearPlaylist();
-        if (force_rebuild) {
-            console.log("Force rebuilding playlist..");
+        if (playlistModified(list) == false && !force_rebuild) {
+            return;
         }
-        if (playlistModified(list) == false && !force_rebuild) return;
         clearPlaylist();
         list.sort(function(first, second) {
             first.order_num < second.order_num;
         });
-        console.log("Building list: " + list);
         for (let i = 0; i < list.length; i++) {
             let v = list[i]['video_id'];
             let video_title = list[i]['video_title'];
@@ -309,7 +306,6 @@
         });
         $.ajax({
             type:"POST",
-            //dataType : "json",
             url: "/set-playlist-by-titles",
             data: {
                 "titles": JSON.stringify(title_array)
@@ -333,21 +329,19 @@
           e.preventDefault();
           $("#wrapper").toggleClass("toggled");
         });
-        (function($) {
-            $(".sortable").sortable({
-                containerSelector: "ul.sortable",
-                itemSelector: "li.sort",
-                handle: ".handle",
-                placeholder:
-                    '<li><div class="card bg-primary text-white mb-1"><div class="card-header">Drop Here</div></div></li>',
-                distance: 0,
-                onDrop: function($item) {
-                    $item.attr("style", null).removeClass("dragged");
-                    $("body").removeClass("dragging");
-                    sendPlaylist();
-                }
-                });
-        })(jQuery);
+        $(".sortable").sortable({
+            containerSelector: "ul.sortable",
+            itemSelector: "li.sort",
+            handle: ".handle",
+            placeholder:
+                '<li><div class="card bg-primary text-white mb-1"><div class="card-header">Move here</div></div></li>',
+            distance: 0,
+            onDrop: function($item) {
+                $item.attr("style", null).removeClass("dragged");
+                $("body").removeClass("dragging");
+                sendPlaylist();
+            }
+        });
 
     });
 
@@ -390,7 +384,6 @@
             <div id="player"></div>
         </div>
     </div>
-    <!-- /#page-content-wrapper -->
 </div>
 
 {% endblock %}
