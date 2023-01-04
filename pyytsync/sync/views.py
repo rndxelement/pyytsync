@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
 from django.template import loader
 from sync.models import VideoState, PlaylistVideo
@@ -47,7 +48,8 @@ def get_vid_time(request):
 def add_vid_to_playlist(request):
     video_id = request.GET['video_id']
     video_title = request.GET['video_title']
-    playlist_video = PlaylistVideo(video_id = video_id, video_title = video_title)
+    cnt = PlaylistVideo.objects.all().count()
+    playlist_video = PlaylistVideo(video_id = video_id, video_title = video_title, order_num = cnt + 1)
     playlist_video.save()
     return HttpResponse("Added video to playlist!")
 
@@ -57,9 +59,8 @@ def remove_vid_from_playlist(request):
     return HttpResponse("Deleted video from playlist!")
 
 def get_playlist_videos(request):
-    playlist_videos = PlaylistVideo.objects.all().values()
+    playlist_videos = PlaylistVideo.objects.all().order_by('order_num').values()
     playlist_videos = [playlist_videos[i] for i in range(len(playlist_videos))]
-    print(playlist_videos)
     return HttpResponse(json.dumps(playlist_videos))
 
 def set_next_playlist_video(request):
@@ -70,7 +71,7 @@ def set_next_playlist_video(request):
     delta = (current_time - last_time).total_seconds()
     if delta < allowed_delta:
         return HttpResponse("Refusing to run next video because of recent request!")
-    next_video = PlaylistVideo.objects.all().order_by('id').first()
+    next_video = PlaylistVideo.objects.all().order_by('order_num').first()
     video_state.last_next_playlist_video_time = current_time
     video_state.current_video_id = next_video.video_id
     video_state.current_playtime = 0
@@ -79,3 +80,11 @@ def set_next_playlist_video(request):
     PlaylistVideo.objects.filter(id=next_video.id).delete();
     return HttpResponse("Running next video from playlist!")
 
+@csrf_exempt
+def set_playlist_by_titles(request):
+    titles = json.loads(request.POST['titles'])
+    for idx, title in enumerate(titles):
+        vid = PlaylistVideo.objects.filter(video_title=title).first()
+        vid.order_num = idx
+        vid.save()
+    return HttpResponse("Reordered videos of playlist!")

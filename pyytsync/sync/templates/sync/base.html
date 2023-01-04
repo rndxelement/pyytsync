@@ -43,7 +43,6 @@
                 return data['video_id'];
             }
         );
-        console.log("loading video: " + video_id);
         player.loadVideoById(video_id);
         getCurrentTime(function(data){
             let response = data;
@@ -104,18 +103,12 @@
             if (prev_server_time != current_time_server) {
                 prev_server_time = current_time_server; 
                 start_time = end_time;
-                console.log("server time changed. adjusting.");
                 player.seekTo(current_time_server);
                 return;
             }
-            console.log("server time: " + current_time_server);
             current_time_local = player.getCurrentTime();
             delta = Math.abs(current_time_local - elapsed_time - current_time_server);
-            console.log("elapsed time: " + elapsed_time);
-            console.log("time delta: " + delta);
-            console.log("start time:" + start_time);
             if (delta > allowed_delta) {
-                console.log("time delta greater than allowed delta. local time changed.");
                 start_time = end_time;
                 sendCurrentTime();
             }
@@ -123,7 +116,6 @@
         getVid(function(data) {
             let vid = data['video_id'];
             if (vid != video_id) {
-                console.log("Video on server changed. [video_id="+video_id+",vid="+vid);
                 video_id = vid;
                 player.loadVideoById(video_id);
             }
@@ -132,7 +124,6 @@
 
     var intervalPlayerTime = window.setInterval(function(){
         updatePlayerTime(); 
-        console.log("running interval");
     }, 1000);
 
     var intervalPlaylist = window.setInterval(function(){
@@ -157,22 +148,21 @@
                 data: {
                     video_id: video_id,
                     video_title: video_title
-                },
-                success: function( data ) {
+                },    success: function( data ) {
                     getPlaylist();
                 }
             });
         });
     }
 
-    function getPlaylist() {
+    function getPlaylist(force_rebuild=false) {
         $.ajax({
             type:"GET",
             url: "/get-playlist-videos",
             data: {
             },
             success: function( data ) {
-                buildPlaylist(JSON.parse(data));
+                buildPlaylist(JSON.parse(data), force_rebuild=force_rebuild);
             }
         });
     }
@@ -183,47 +173,43 @@
 
     function playlistModified(list) {
         let titles = document.querySelectorAll(".video-title");
-        console.log("titles:" + titles);
         let ret = false;
+        var idx = 0;
         titles.forEach((item) => {
             let cur = item.textContent;
             cur = cur.replace('Next up:\n', '');
-            console.log("cur:" + cur);
-            let found = false;
-            for (let i = 0; i < list.length; i++) {
-                console.log("[" + cur + "," + list[i]['video_title'] + "]");
-                if (list[i]['video_title'] == cur) {
-                    found = true;
-                    break;
-                }
-            }
-            if (found == false) {
+            if (idx >= list.length) {
                 ret = true;
+                return;
             }
+            if (list[idx]['video_title'] != cur) {
+                ret = true;
+                return;
+            }
+            idx++;
         });
         if (ret) {
+            console.log("Rebuilding..");
             return true;
         }
-        for (let i = 0; i < list.length; i++) {
-            let found = false;
-            titles.forEach((item) => {
-                if (list[i]['video_title'] == item.textContent.replace('Next up:\n',''))
-                {
-                    found = true;
-                }
-            });
-            if (!found) {
-                return true;
-            }
+        if (idx != list.length) {
+            console.log("Rebuilding..");
+            return true;
         }
-        console.log("Nothing changed. Not building playlist again.");
         return false;
     }
 
-    function buildPlaylist(list) {
+    function buildPlaylist(list, force_rebuild=false) {
         //clearPlaylist();
-        if (playlistModified(list) == false) return;
+        if (force_rebuild) {
+            console.log("Force rebuilding playlist..");
+        }
+        if (playlistModified(list) == false && !force_rebuild) return;
         clearPlaylist();
+        list.sort(function(first, second) {
+            first.order_num < second.order_num;
+        });
+        console.log("Building list: " + list);
         for (let i = 0; i < list.length; i++) {
             let v = list[i]['video_id'];
             let video_title = list[i]['video_title'];
@@ -313,6 +299,27 @@
         }
     }
 
+    function sendPlaylist() {
+        let titles = document.querySelectorAll(".video-title");
+        let title_array = []
+        titles.forEach((item) => {
+            let cur = item.textContent;
+            cur = cur.replace('Next up:\n', '');
+            title_array.push(cur);
+        });
+        $.ajax({
+            type:"POST",
+            //dataType : "json",
+            url: "/set-playlist-by-titles",
+            data: {
+                "titles": JSON.stringify(title_array)
+            },    success: function( ) {
+                console.log("SUCESS");
+                getPlaylist(force_rebuild=true);
+            }
+        });
+    }
+
     window.addEventListener("load", () => {
         var inputBox = document.getElementById("input-box");
         inputBox.addEventListener("keydown", checkEnter);
@@ -337,6 +344,7 @@
                 onDrop: function($item) {
                     $item.attr("style", null).removeClass("dragged");
                     $("body").removeClass("dragging");
+                    sendPlaylist();
                 }
                 });
         })(jQuery);
@@ -353,10 +361,8 @@
 
 <div class="d-flex" id="wrapper">
     <div class="bg-dark vh-100" id="sidebar-wrapper">
-        <div class="sidebar-heading"><p class="text-light bg-dark p-1"><b>pyytsync</b></p></div>
-        <!-- div class="list-group list-group-flush overflow-auto h-100" id="playlist">
-        </div -->
-        <div class="card-body overflow-auto h-100">
+        <div class="sidebar-heading"><p class="text-light bg-dark p-1 text-center"><b>pyytsync</b></p></div>
+        <div class="card-body overflow-auto h-100 p-1">
             <ul class="list-unstyled sortable" id="playlist">
             </ul>
         </div>
@@ -369,13 +375,15 @@
                 </button>
                 <button class="navbar-toggler d-none" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
                 </button>
-                <div class="input-group mb-3">
+                <div class="input-group mb-3" id="input-div">
                   <input type="text" class="form-control" placeholder="Video-URL" aria-label="Recipient's username" aria-describedby="button-addon2" id="input-box">
                   <button class="btn btn-outline-secondary" type="button" id="input-box-button">Add video</button>
                 </div>
-                <a class="nav-link mb-3" href="https://github.com/rndxelement/pyytsync" target="_blank" rel="noopener noreferrer">
-                    {% bs_icon 'github' size='1.5em' %}
-                </a>
+                <div class="ms-auto">
+                    <a class="nav-link ml-auto" href="https://github.com/rndxelement/pyytsync" target="_blank" rel="noopener noreferrer">
+                        {% bs_icon 'github' size='1.5em' color='gray' %}
+                    </a>
+                </div>
             </div>
         </nav>
         <div class="container-fluid bg-dark p-0">

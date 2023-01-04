@@ -12,3 +12,4 @@ class PlaylistVideo(models.Model):
 
     video_id = models.CharField(max_length=50)
     video_title = models.CharField(max_length=500, null=True)
+    order_num = models.IntegerField(null=True)

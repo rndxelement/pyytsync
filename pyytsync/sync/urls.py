@@ -12,4 +12,5 @@ urlpatterns = [
         path('remove-vid-from-playlist', views.remove_vid_from_playlist, name='remove-vid-from-playlist'),
         path('get-playlist-videos', views.get_playlist_videos, name='get-playlist-videos'),
         path('set-next-playlist-video', views.set_next_playlist_video, name='set-next-playlist-video'),
+        path('set-playlist-by-titles', views.set_playlist_by_titles, name='set-playlist-by-titles'),
 ] 
