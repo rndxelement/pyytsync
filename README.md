@@ -1,5 +1,7 @@
 # pyytsync - A simple web app for watching Youtube videos synchronized over multiple user sessions
 
+![Sample image](sample.png)
+
 :heavy_check_mark: User interface: Fast and responsive, implemented with Bootstrap 5 and JavaScript  
 :heavy_check_mark: Managing a queue of videos: Add, delete and adjust order via Drag & Drop  
 :heavy_check_mark: Deployment: Easily deployable via Docker and Docker-compose  
