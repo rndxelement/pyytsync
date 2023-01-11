@@ -13,13 +13,15 @@
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-sortable/0.9.13/jquery-sortable-min.js"></script>
 <script type="text/javascript">
-    var player;
-    var start_time = Date.now();
+    var player; // Reference to YT player
+    var start_time = Date.now(); 
     var end_time = Date.now();
-    var prev_server_time = 0;
-    var video_id;
-    var allowed_delta = 5.0;
+    var prev_server_time = 0; // Most recently received server time
+    var video_id; // Current video id
+    var allowed_delta = 5.0; // Allowed time delta between client time and server time
+    var updateInterval = 1000; // Interval between time and playlist updates in milliseconds
 
+    // Executed when the YouTube API is ready
     function onYouTubePlayerAPIReady() {
       player = new YT.Player('player', {
         height: '360',
@@ -38,31 +40,34 @@
       });
     }
 
+    // Executed when the YouTube player is ready
     function onPlayerReady(event) {
+        // Get video id from server and load video
         video_id = getVid(function( data ) {
                 return data['video_id'];
             }
         );
         player.loadVideoById(video_id);
+
+        // Get current server time and adjust player
         getCurrentTime(function(data){
-            let response = data;
-            current_time_server = response['video_time'];
+            current_time_server = data['video_time'];
             prev_server_time = current_time_server;
             player.seekTo(current_time_server);
         });
     }
 
+    // Executed whenever the player state changes
     function onPlayerStateChange(event) {
-        if(event.data === 0) { // finished playing
+        if(event.data === 0) { // Finished playing video
             $.ajax({
                 type:"GET",
                 url: "/set-next-playlist-video",
-                data: {
-                },
             });
         }
     }
 
+    // Send client time to server
     function sendCurrentTime(callback) {
         $.ajax({
             type:"GET",
@@ -74,6 +79,7 @@
         });
     }
 
+    // Get video id from server
     function getVid(callback) {
         $.ajax({
             type:"GET",
@@ -84,6 +90,7 @@
         });
     }
 
+    // Get current server time
     function getCurrentTime(callback) {
         return $.ajax({
             type:"GET",
@@ -94,48 +101,59 @@
         });
     }
 
+    // Update client player time
     function updatePlayerTime() {
         getCurrentTime(function(data){
             let response = data;
             let end_time = Date.now();
-            let elapsed_time = (end_time - start_time) / 1000;
+            let elapsed_seconds = (end_time - start_time) / 1000;
             current_time_server = response['video_time'];
-            if (prev_server_time != current_time_server) {
+            if (prev_server_time != current_time_server) { 
+                // Server time changed, so adjust client time
                 prev_server_time = current_time_server; 
                 start_time = end_time;
                 player.seekTo(current_time_server);
                 return;
             }
             current_time_local = player.getCurrentTime();
-            delta = Math.abs(current_time_local - elapsed_time - current_time_server);
+            delta = Math.abs(current_time_local - elapsed_seconds - current_time_server);
             if (delta > allowed_delta) {
+                // Delta exceeds allowed delta, so client either
+                // buffered, paused or changed client time
                 start_time = end_time;
                 sendCurrentTime();
             }
         });
         getVid(function(data) {
+            // Fixme: Using @vid here because naming it video_id resulted in 
+            // strange behaviour (because it get overshadowed somehow)
             let vid = data['video_id'];
             if (vid != video_id) {
+                // Load video 
                 video_id = vid;
                 player.loadVideoById(video_id);
             }
         });
     }
 
+    // Update client player time every @updateInterval
     var intervalPlayerTime = window.setInterval(function(){
         updatePlayerTime(); 
-    }, 1000);
+    }, updateInterval);
 
+    // Update client playlist every @updateInterval
     var intervalPlaylist = window.setInterval(function(){
         getPlaylist();
-    }, 1000);
+    }, updateInterval);
 
+    // Parse YouTube URL to video id
     function youtube_parser(url){
         var regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
         var match = url.match(regExp);
         return (match&&match[7].length==11)? match[7] : false;
     }
 
+    // Get URL from input box and add video to playlist
     function addVideoToPlaylist() {
         var inputBox = document.getElementById("input-box");
         url = inputBox.value;
@@ -155,6 +173,8 @@
         });
     }
 
+    // Get playlist from server and rebuild client playlist
+    // @force_rebuild: Force a rebuild of HTML elements at client
     function getPlaylist(force_rebuild=false) {
         $.ajax({
             type:"GET",
@@ -167,10 +187,13 @@
         });
     }
 
+    // Clear all HTML elements from client playlist
     function clearPlaylist() {
         document.getElementById("playlist").replaceChildren();
     }
 
+    // Check whether the playlist at the client differs from the 
+    // playlist stored at the server
     function playlistModified(list) {
         let titles = document.querySelectorAll(".video-title");
         let ret = false;
@@ -199,6 +222,8 @@
         return false;
     }
 
+    // Build the client playlist HTML elements
+    // @force_rebuild: Force a rebuild of HTML elements at client
     function buildPlaylist(list, force_rebuild=false) {
         if (playlistModified(list) == false && !force_rebuild) {
             return;
@@ -296,6 +321,7 @@
         }
     }
 
+    // Send client playlist to server
     function sendPlaylist() {
         let titles = document.querySelectorAll(".video-title");
         let title_array = []
@@ -316,6 +342,7 @@
         });
     }
 
+    // Client initialization
     window.addEventListener("load", () => {
         var inputBox = document.getElementById("input-box");
         inputBox.addEventListener("keydown", checkEnter);
@@ -345,6 +372,7 @@
 
     });
 
+    // Check the enter key
     function checkEnter(event) {
         if (event.keyCode == 13) {
             addVideoToPlaylist();
