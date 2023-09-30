@@ -18,6 +18,16 @@
 
 `docker-compose build && docker-compose up -d`
 
+# Optional: Browser extension
+For ease of use the browser extension located in the folder `browser_extension` allows
+right clicking a video on YouTube and selecting "Send to pyytsync", adding it to the
+queue of videos of your pyytsync instance.  
+For this to work you need to replace `<pyytsync-instance>` by the domain name of your
+pyytsync instance, e.g.  
+`cd browser_extension && sed -i -e "s/<pyytsync-instance>/your-domain.xyz/g" *`.  
+Because this extension is not yet signed, you have to enable it via the developer
+options of your browser.  
+
 # Contribute
 
 I'd be happy and grateful about any kind of contributions or even forks.  
