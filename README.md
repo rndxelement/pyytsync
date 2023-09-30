@@ -35,4 +35,5 @@ Areas which might improved:
 - Documentation  
 - JavaScript code for client synchronisation
 - Improving and/or adding advanced techniques to the deployment process  
-- General front-end refactoring/improvement
+- General front-end refactoring/improvement  
+- Reporting bugs and/or feature requests
