@@ -6,6 +6,8 @@
 
 {% load static %}
 
+{% load custom_tags %}
+
 {% block bootstrap5_content %}
 
 <link rel="stylesheet" href="{{ STATIC_URL }}static/style.css" />
@@ -311,8 +313,26 @@
                     }
                 });
             };
+            const buttonToTop = document.createElement('button');
+            buttonToTop.className = "btn btn-outline-light m-2";
+            buttonToTop.innerHTML = `{% bs_icon 'arrow-up-circle' size='1.0em' %}`;
+            buttonToTop.setAttribute('obj-id', id);
+            buttonToTop.setAttribute('video-id', v);
+            buttonToTop.onclick = function() {
+                $.ajax({
+                    type:"GET",
+                    url: "/move-vid-to-top-of-playlist",
+                    data: {
+                        id: this.getAttribute("obj-id")
+                    },
+                    success: function( data ) {
+                        getPlaylist();
+                    }
+                });
+            };
             contentDiv.appendChild(buttonAdd);
             contentDiv.appendChild(buttonDel);
+            contentDiv.appendChild(buttonToTop);
             rowDiv.appendChild(contentDiv);
             cardHeaderDiv.appendChild(rowDiv);
             cardDiv.appendChild(cardHeaderDiv);
@@ -403,6 +423,7 @@
                 </div>
                 <div class="ms-auto">
                     <a class="nav-link ml-auto" href="https://github.com/rndxelement/pyytsync" target="_blank" rel="noopener noreferrer">
+                        <span class="me-2" style="color: gray;">{% get_setting "APP_VERSION" %}</span>
                         {% bs_icon 'github' size='1.5em' color='gray' %}
                     </a>
                 </div>

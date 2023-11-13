@@ -13,4 +13,5 @@ urlpatterns = [
         path('get-playlist-videos', views.get_playlist_videos, name='get-playlist-videos'),
         path('set-next-playlist-video', views.set_next_playlist_video, name='set-next-playlist-video'),
         path('set-playlist-by-titles', views.set_playlist_by_titles, name='set-playlist-by-titles'),
+        path('move-vid-to-top-of-playlist', views.move_vid_to_top_of_playlist, name='move-vid-to-top-of-playlist'),
 ] 

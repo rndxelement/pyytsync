@@ -6,6 +6,7 @@ from sync.models import VideoState, PlaylistVideo
 import json
 from datetime import datetime, timezone
 from django.conf import settings
+from django.db.models import Min
 
 def index(request):
     video_state =  VideoState.objects.all()
@@ -88,3 +89,11 @@ def set_playlist_by_titles(request):
         vid.order_num = idx
         vid.save()
     return HttpResponse("Reordered videos of playlist!")
+
+def move_vid_to_top_of_playlist(request):
+    id = request.GET['id'];
+    min_id = PlaylistVideo.objects.aggregate(Min('order_num'))['order_num__min']
+    video = PlaylistVideo.objects.filter(id=id)[0]
+    video.order_num = min_id - 1
+    video.save()
+    return HttpResponse("Moved video to top of playlist!")
