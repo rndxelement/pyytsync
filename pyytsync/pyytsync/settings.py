@@ -128,3 +128,5 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'sync', 'static')
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 YOUTUBE_DATA_API_KEY = ""
+
+APP_VERSION = 'v0.2'
