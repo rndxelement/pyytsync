@@ -32,7 +32,7 @@ def set_vid_id(request):
 
 def set_vid_time(request):
     video_time = request.GET['video_time']
-    video_states = VideoState.objects.all().values()
+    video_states = VideoState.objects.all()
     if video_states:
         print(f"Received time {video_time} from client")
         video_state = video_states[0]
