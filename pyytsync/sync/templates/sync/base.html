@@ -264,11 +264,34 @@
             }
             titleP.appendChild(document.createTextNode(video_title));
             contentDiv.appendChild(titleP);
+
+            // Create a container for the thumbnail and the duration
+            const thumbnailContainer = document.createElement('div');
+            thumbnailContainer.style.position = 'relative';
+            thumbnailContainer.style.display = 'inline-block';
+
+            // Create the thumbnail image element
             const thumbnailImg = document.createElement('img');
             thumbnailImg.setAttribute("src", "//img.youtube.com/vi/"+v+"/maxresdefault.jpg");
-            thumbnailImg.setAttribute("width", "150");
-            thumbnailImg.setAttribute("height", "84.38");
-            contentDiv.appendChild(thumbnailImg);
+            thumbnailImg.style.display = 'block';
+            thumbnailImg.style.width = '150px';
+            thumbnailImg.style.height = '84.38px';
+            thumbnailContainer.appendChild(thumbnailImg);
+
+            // Create the duration element
+            const titleDuration = document.createElement('span');
+            titleDuration.appendChild(document.createTextNode(list[i]['video_duration']));
+            titleDuration.style.position = 'absolute';
+            titleDuration.style.bottom = '5px'; // Adjust for padding
+            titleDuration.style.right = '5px'; // Adjust for padding
+            titleDuration.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'; // Semi-transparent black background
+            titleDuration.style.color = 'white';
+            titleDuration.style.padding = '2px 5px';
+            titleDuration.style.borderRadius = '3px';
+            titleDuration.style.fontSize = '0.8em';
+            thumbnailContainer.appendChild(titleDuration);
+            contentDiv.appendChild(thumbnailContainer);
+
             const buttonAdd = document.createElement('button');
             buttonAdd.className = "btn btn-outline-light";
             buttonAdd.innerHTML = `{% bs_icon 'play-circle' size='1.0em' %}`;

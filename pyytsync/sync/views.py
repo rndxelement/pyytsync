@@ -7,6 +7,8 @@ import json
 from datetime import datetime, timezone
 from django.conf import settings
 from django.db.models import Min
+from googleapiclient.discovery import build
+import isodate
 
 def index(request):
     video_state =  VideoState.objects.all()
@@ -30,27 +32,67 @@ def set_vid_id(request):
 
 def set_vid_time(request):
     video_time = request.GET['video_time']
-    video_state = VideoState.objects.all()[0]
-    print(f"Received time {video_time} from client")
-    video_state.current_playtime = video_time
-    video_state.save()
-    return HttpResponse("Sent video time to server!")
+    video_states = VideoState.objects.all().values()
+    if video_states:
+        print(f"Received time {video_time} from client")
+        video_state = video_states[0]
+        video_state.current_playtime = video_time
+        video_state.save()
+        return HttpResponse("Sent video time to server!")
+    else:
+        print("No video currently set")
+        return HttpResponse("No video currently set!")
 
 def get_vid_id(request):
-    video_id = VideoState.objects.all().values()[0]['current_video_id']
-    print(f"Sending {video_id} to client")
-    return HttpResponse(json.dumps({'video_id': video_id}))
+    video_states = VideoState.objects.all().values()
+    if video_states:
+        video_id = video_states[0]['current_video_id']
+        print(f"Sending {video_id} to client")
+        return HttpResponse(json.dumps({'video_id': video_id}))
+    else:
+        print("No video ID available")
+        return HttpResponse(json.dumps({'video_id': None}))
 
 def get_vid_time(request):
-    video_time = VideoState.objects.all().values()[0]['current_playtime']
-    print(f"Sending time {video_time} to client")
-    return HttpResponse(json.dumps({'video_time': video_time}))
+    video_states = VideoState.objects.all().values()
+    if video_states:
+        video_time = video_states[0]['current_playtime']
+        print(f"Sending time {video_time} to client")
+        return HttpResponse(json.dumps({'video_time': video_time}))
+    else:
+        print("No video time available")
+        return HttpResponse(json.dumps({'video_time': None}))
+
+def format_duration(iso_duration):
+    duration = isodate.parse_duration(iso_duration)
+    total_seconds = int(duration.total_seconds())
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours:
+        return f"{hours:02}:{minutes:02}:{seconds:02}"
+    else:
+        return f"{minutes:02}:{seconds:02}"
 
 def add_vid_to_playlist(request):
     video_id = request.GET['video_id']
     video_title = request.GET['video_title']
     cnt = PlaylistVideo.objects.all().count()
-    playlist_video = PlaylistVideo(video_id = video_id, video_title = video_title, order_num = cnt + 1)
+
+    # Build a service object for interacting with the API
+    youtube = build('youtube', 'v3', developerKey=settings.YOUTUBE_DATA_API_KEY)
+
+    # Call the videos.list method to retrieve video details
+    response = youtube.videos().list(
+        part='contentDetails',
+        id=video_id
+    ).execute()
+
+    # Extracting video duration
+    duration = response['items'][0]['contentDetails']['duration']
+    print(f"Duration: {duration}")
+    video_duration = format_duration(duration)
+
+    playlist_video = PlaylistVideo(video_id = video_id, video_title = video_title, order_num = cnt + 1, video_duration = video_duration)
     playlist_video.save()
     return HttpResponse("Added video to playlist!")
 
