@@ -232,7 +232,7 @@
         }
         clearPlaylist();
         list.sort(function(first, second) {
-            first.order_num < second.order_num;
+            return first.order_num - second.order_num;
         });
         for (let i = 0; i < list.length; i++) {
             let v = list[i]['video_id'];
@@ -257,9 +257,12 @@
             titleP = document.createElement('p');
             titleP.className = "text-light video-title";
             if (i == 0) {
-                const nextUpB = document.createElement('b');
-                nextUpB.appendChild(document.createTextNode("Next up:\n"));
-                titleP.appendChild(nextUpB);
+                const nextUpSpan = document.createElement('span');
+                nextUpSpan.appendChild(document.createTextNode("Next up:"));
+                nextUpSpan.style.fontWeight = 'bold';
+                nextUpSpan.style.fontSize = '1.1em';
+                nextUpSpan.style.marginRight = '5px';
+                titleP.appendChild(nextUpSpan);
                 titleP.appendChild(document.createElement('br'));
             }
             titleP.appendChild(document.createTextNode(video_title));
@@ -269,20 +272,22 @@
             const thumbnailContainer = document.createElement('div');
             thumbnailContainer.style.position = 'relative';
             thumbnailContainer.style.display = 'inline-block';
+            thumbnailContainer.style.width = '180px'; // 16-9 ratio
+            thumbnailContainer.style.height = '101px';
 
             // Create the thumbnail image element
             const thumbnailImg = document.createElement('img');
             thumbnailImg.setAttribute("src", "//img.youtube.com/vi/"+v+"/maxresdefault.jpg");
             thumbnailImg.style.display = 'block';
-            thumbnailImg.style.width = '150px';
-            thumbnailImg.style.height = '84.38px';
+            thumbnailImg.style.width = '100%';
+            thumbnailImg.style.height = '100%';
             thumbnailContainer.appendChild(thumbnailImg);
 
             // Create the duration element
             const titleDuration = document.createElement('span');
             titleDuration.appendChild(document.createTextNode(list[i]['video_duration']));
             titleDuration.style.position = 'absolute';
-            titleDuration.style.bottom = '5px'; // Adjust for padding
+            titleDuration.style.top = '5px'; // Align to top right
             titleDuration.style.right = '5px'; // Adjust for padding
             titleDuration.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'; // Semi-transparent black background
             titleDuration.style.color = 'white';
@@ -290,19 +295,61 @@
             titleDuration.style.borderRadius = '3px';
             titleDuration.style.fontSize = '0.8em';
             thumbnailContainer.appendChild(titleDuration);
-            contentDiv.appendChild(thumbnailContainer);
 
-            const buttonAdd = document.createElement('button');
-            buttonAdd.className = "btn btn-outline-light";
-            buttonAdd.innerHTML = `{% bs_icon 'play-circle' size='1.0em' %}`;
-            buttonAdd.setAttribute('obj-id', id);
-            buttonAdd.setAttribute('video-id', v);
-            buttonAdd.onclick = function() {
-                $.ajax({
+            // Create a container for buttons
+            const buttonsContainer = document.createElement('div');
+            buttonsContainer.style.position = 'absolute';
+            buttonsContainer.style.bottom = '5px'; // Align to bottom left
+            buttonsContainer.style.left = '5px'; 
+            buttonsContainer.style.display = 'flex';
+            buttonsContainer.style.flexDirection = 'row';
+            buttonsContainer.style.gap = '5px'; // Spacing between buttons
+
+            // Function to create and style a button
+            function createButton(iconName, videoId, objectId, actionFunction) {
+                const button = document.createElement('button');
+                button.className = "btn";
+                // TODO: Avoid these if clauses
+                if (iconName == 'play-circle') {
+                    button.innerHTML = `{% bs_icon 'play-circle' size='1.0em' %}`;
+                } 
+                if (iconName == 'x-circle') {
+                    button.innerHTML = `{% bs_icon 'x-circle' size='1.0em' %}`;
+                }
+                if (iconName == 'arrow-up-circle') {
+                    button.innerHTML = `{% bs_icon 'arrow-up-circle' size='1.0em' %}`;
+                }
+                button.addEventListener('click', function() {
+                    actionFunction(videoId, objectId);
+                });
+                button.style.backgroundColor = 'rgba(0, 0, 0, 0.5)'; // Semi-transparent background
+                button.style.border = 'none';
+                button.style.color = 'white';
+                button.style.width = '34px';
+                button.style.height = '34px';
+                button.style.padding = '5px';
+                button.style.borderRadius = '3px';
+                
+                // Hover effects
+                button.onmouseover = function() {
+                    this.style.backgroundColor = 'white'; // Color on hover
+                    this.style.color = 'black'; // Text color on hover
+                };
+                button.onmouseout = function() {
+                    this.style.backgroundColor = 'rgba(0, 0, 0, 0.5)'; // Original color
+                    this.style.color = 'white'; // Original text color
+                };
+                
+                return button;
+            }
+
+            // Define the button click handlers
+            function playVideo(videoId, objectId) {
+                 $.ajax({
                     type:"GET",
                     url: "/set-vid-id",
                     data: {
-                        video_id: this.getAttribute("video-id")
+                        video_id: videoId
                     },
                     success: function( data ) {
                         getPlaylist();
@@ -312,50 +359,50 @@
                     type:"GET",
                     url: "/remove-vid-from-playlist",
                     data: {
-                        id: this.getAttribute("obj-id")
+                        id: objectId
                     },
                     success: function( data ) {
                         getPlaylist();
                     }
                 });
-            };
-            const buttonDel = document.createElement('button');
-            buttonDel.className = "btn btn-outline-light m-2";
-            buttonDel.innerHTML = `{% bs_icon 'x-circle' size='1.0em' %}`;
-            buttonDel.setAttribute('obj-id', id);
-            buttonDel.setAttribute('video-id', v);
-            buttonDel.onclick = function() {
+            }
+            function deleteVideo(videoId, objectId) {
                 $.ajax({
                     type:"GET",
                     url: "/remove-vid-from-playlist",
                     data: {
-                        id: this.getAttribute("obj-id")
+                        id: objectId
                     },
                     success: function( data ) {
                         getPlaylist();
                     }
                 });
-            };
-            const buttonToTop = document.createElement('button');
-            buttonToTop.className = "btn btn-outline-light m-2";
-            buttonToTop.innerHTML = `{% bs_icon 'arrow-up-circle' size='1.0em' %}`;
-            buttonToTop.setAttribute('obj-id', id);
-            buttonToTop.setAttribute('video-id', v);
-            buttonToTop.onclick = function() {
+            }
+            function moveToTop(videoId, objectId) {
                 $.ajax({
                     type:"GET",
                     url: "/move-vid-to-top-of-playlist",
                     data: {
-                        id: this.getAttribute("obj-id")
+                        id: objectId
                     },
                     success: function( data ) {
                         getPlaylist();
                     }
                 });
-            };
-            contentDiv.appendChild(buttonAdd);
-            contentDiv.appendChild(buttonDel);
-            contentDiv.appendChild(buttonToTop);
+            }
+
+            // Add buttons to the buttons container
+            const playButton = createButton('play-circle', v, id, playVideo);
+            const deleteButton = createButton('x-circle', v, id, deleteVideo);
+            const toTopButton = createButton('arrow-up-circle', v, id, moveToTop);
+
+            // Append buttons to their container
+            buttonsContainer.appendChild(playButton);
+            buttonsContainer.appendChild(deleteButton);
+            buttonsContainer.appendChild(toTopButton);
+
+            thumbnailContainer.appendChild(buttonsContainer);
+            contentDiv.appendChild(thumbnailContainer);
             rowDiv.appendChild(contentDiv);
             cardHeaderDiv.appendChild(rowDiv);
             cardDiv.appendChild(cardHeaderDiv);
