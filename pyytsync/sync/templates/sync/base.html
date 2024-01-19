@@ -202,7 +202,7 @@
         var idx = 0;
         titles.forEach((item) => {
             let cur = item.textContent;
-            cur = cur.replace('Next up:\n', '');
+            cur = cur.replace('Next up:', '');
             if (idx >= list.length) {
                 ret = true;
                 return;

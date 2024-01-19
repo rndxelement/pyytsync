@@ -127,6 +127,7 @@ def set_next_playlist_video(request):
 def set_playlist_by_titles(request):
     titles = json.loads(request.POST['titles'])
     for idx, title in enumerate(titles):
+        title = title.replace("Next up:", "")
         vid = PlaylistVideo.objects.filter(video_title=title).first()
         vid.order_num = idx
         vid.save()
