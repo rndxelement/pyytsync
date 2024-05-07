@@ -1,0 +1,453 @@
+var player; // Reference to YT player
+var start_time = Date.now(); 
+var end_time = Date.now();
+var prev_server_time = 0; // Most recently received server time
+var video_id; // Current video id
+var allowed_delta = 5.0; // Allowed time delta between client time and server time
+var updateInterval = 1000; // Interval between time and playlist updates in milliseconds
+
+// Executed when the YouTube API is ready
+function onYouTubePlayerAPIReady() {
+    player = new YT.Player('player', {
+    height: '360',
+    width: '640',
+    videoId: '{{ video_id }}',
+    playerVars: {
+        'autoplay': 1,
+        'mute': 1,
+        'controls': 1,
+        'disablekb': 1,
+    },
+    events: {
+        'onReady': onPlayerReady,
+        'onStateChange': onPlayerStateChange
+    }
+    });
+}
+
+// Executed when the YouTube player is ready
+function onPlayerReady(event) {
+    // Get video id from server and load video
+    video_id = getVid(function( data ) {
+            return data['video_id'];
+        }
+    );
+    player.loadVideoById(video_id);
+
+    // Get current server time and adjust player
+    getCurrentTime(function(data){
+        current_time_server = data['video_time'];
+        prev_server_time = current_time_server;
+        player.seekTo(current_time_server);
+    });
+}
+
+// Executed whenever the player state changes
+function onPlayerStateChange(event) {
+    if(event.data === 0) { // Finished playing video
+        $.ajax({
+            type:"GET",
+            url: "/set-next-playlist-video",
+        });
+    }
+}
+
+// Send client time to server
+function sendCurrentTime(callback) {
+    $.ajax({
+        type:"GET",
+        url: "/set-vid-time",
+        data: {
+            video_time: player.getCurrentTime()
+        },
+        success: callback
+    });
+}
+
+// Get video id from server
+function getVid(callback) {
+    $.ajax({
+        type:"GET",
+        url: "/get-vid-id",
+        data: {},
+        dataType: "json",
+        success: callback
+    });
+}
+
+// Get current server time
+function getCurrentTime(callback) {
+    return $.ajax({
+        type:"GET",
+        url: "/get-vid-time",
+        data: {},
+        dataType: "json",
+        success: callback
+    });
+}
+
+// Update client player time
+function updatePlayerTime() {
+    getCurrentTime(function(data){
+        let response = data;
+        let end_time = Date.now();
+        let elapsed_seconds = (end_time - start_time) / 1000;
+        current_time_server = response['video_time'];
+        if (prev_server_time != current_time_server) { 
+            // Server time changed, so adjust client time
+            prev_server_time = current_time_server; 
+            start_time = end_time;
+            player.seekTo(current_time_server);
+            return;
+        }
+        current_time_local = player.getCurrentTime();
+        delta = Math.abs(current_time_local - elapsed_seconds - current_time_server);
+        if (delta > allowed_delta) {
+            // Delta exceeds allowed delta, so client either
+            // buffered, paused or changed client time
+            start_time = end_time;
+            sendCurrentTime();
+        }
+    });
+    getVid(function(data) {
+        // Fixme: Using @vid here because naming it video_id resulted in 
+        // strange behaviour (because it get overshadowed somehow)
+        let vid = data['video_id'];
+        if (vid != video_id) {
+            // Load video 
+            video_id = vid;
+            player.loadVideoById(video_id);
+        }
+    });
+}
+
+// Update client player time every @updateInterval
+var intervalPlayerTime = window.setInterval(function(){
+    updatePlayerTime(); 
+}, updateInterval);
+
+// Update client playlist every @updateInterval
+var intervalPlaylist = window.setInterval(function(){
+    getPlaylist();
+}, updateInterval);
+
+// Parse YouTube URL to video id
+function youtube_parser(url){
+    var regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+    var match = url.match(regExp);
+    return (match&&match[7].length==11)? match[7] : false;
+}
+
+// Get URL from input box and add video to playlist
+function addVideoToPlaylist() {
+    var inputBox = document.getElementById("input-box");
+    url = inputBox.value;
+    let video_id = youtube_parser(url);
+    $.get("https://www.googleapis.com/youtube/v3/videos?part=snippet&id=" + video_id + "&key=" + "{{ YOUTUBE_DATA_API_KEY }}", function(data) {
+        let video_title = data.items[0].snippet.title;
+        $.ajax({
+            type:"GET",
+            url: "/add-vid-to-playlist",
+            data: {
+                video_id: video_id,
+                video_title: video_title
+            },    success: function( data ) {
+                getPlaylist();
+            }
+        });
+    });
+}
+
+// Get playlist from server and rebuild client playlist
+// @force_rebuild: Force a rebuild of HTML elements at client
+function getPlaylist(force_rebuild=false) {
+    $.ajax({
+        type:"GET",
+        url: "/get-playlist-videos",
+        data: {
+        },
+        success: function( data ) {
+            buildPlaylist(JSON.parse(data), force_rebuild=force_rebuild);
+        }
+    });
+}
+
+// Clear all HTML elements from client playlist
+function clearPlaylist() {
+    document.getElementById("playlist").replaceChildren();
+}
+
+// Check whether the playlist at the client differs from the 
+// playlist stored at the server
+function playlistModified(list) {
+    let titles = document.querySelectorAll(".video-title");
+    let ret = false;
+    var idx = 0;
+    titles.forEach((item) => {
+        let cur = item.textContent;
+        cur = cur.replace('Next up:', '');
+        if (idx >= list.length) {
+            ret = true;
+            return;
+        }
+        if (list[idx]['video_title'] != cur) {
+            ret = true;
+            return;
+        }
+        idx++;
+    });
+    if (ret) {
+        console.log("Rebuilding..");
+        return true;
+    }
+    if (idx != list.length) {
+        console.log("Rebuilding..");
+        return true;
+    }
+    return false;
+}
+
+// Build the client playlist HTML elements
+// @force_rebuild: Force a rebuild of HTML elements at client
+function buildPlaylist(list, force_rebuild=false) {
+    if (playlistModified(list) == false && !force_rebuild) {
+        return;
+    }
+    clearPlaylist();
+    list.sort(function(first, second) {
+        return first.order_num - second.order_num;
+    });
+    for (let i = 0; i < list.length; i++) {
+        let v = list[i]['video_id'];
+        let video_title = list[i]['video_title'];
+        let id = list[i]['id'];
+        const item = document.createElement('li');
+        item.setAttribute('obj-id', id);
+        item.setAttribute('video-id', v);
+        item.className = "sort";
+        const cardDiv = document.createElement('div');
+        cardDiv.className = "card bg-dark mb-1";
+        const cardHeaderDiv = document.createElement('div');
+        cardHeaderDiv.className = "card-header p-2";
+        const rowDiv = document.createElement('div');
+        rowDiv.className = "row form-inline align-items-center";
+        const handleDiv = document.createElement('div');
+        handleDiv.className = "col-sm-1 handle";
+        handleDiv.innerHTML = `{% bs_icon 'grip-vertical' size='1.5em' color='white' %}`;
+        rowDiv.appendChild(handleDiv);
+        const contentDiv = document.createElement('div');
+        contentDiv.className = "col-sm-10";
+        titleP = document.createElement('p');
+        titleP.className = "text-light video-title";
+        if (i == 0) {
+            const nextUpSpan = document.createElement('span');
+            nextUpSpan.appendChild(document.createTextNode("Next up:"));
+            nextUpSpan.style.fontWeight = 'bold';
+            nextUpSpan.style.fontSize = '1.1em';
+            nextUpSpan.style.marginRight = '5px';
+            titleP.appendChild(nextUpSpan);
+            titleP.appendChild(document.createElement('br'));
+        }
+        titleP.appendChild(document.createTextNode(video_title));
+        contentDiv.appendChild(titleP);
+
+        // Create a container for the thumbnail and the duration
+        const thumbnailContainer = document.createElement('div');
+        thumbnailContainer.style.position = 'relative';
+        thumbnailContainer.style.display = 'inline-block';
+        thumbnailContainer.style.width = '180px'; // 16-9 ratio
+        thumbnailContainer.style.height = '101px';
+
+        // Create the thumbnail image element
+        const thumbnailImg = document.createElement('img');
+        thumbnailImg.setAttribute("src", "//img.youtube.com/vi/"+v+"/maxresdefault.jpg");
+        thumbnailImg.style.display = 'block';
+        thumbnailImg.style.width = '100%';
+        thumbnailImg.style.height = '100%';
+        thumbnailContainer.appendChild(thumbnailImg);
+
+        // Create the duration element
+        const titleDuration = document.createElement('span');
+        titleDuration.appendChild(document.createTextNode(list[i]['video_duration']));
+        titleDuration.style.position = 'absolute';
+        titleDuration.style.top = '5px'; // Align to top right
+        titleDuration.style.right = '5px'; // Adjust for padding
+        titleDuration.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'; // Semi-transparent black background
+        titleDuration.style.color = 'white';
+        titleDuration.style.padding = '2px 5px';
+        titleDuration.style.borderRadius = '3px';
+        titleDuration.style.fontSize = '0.8em';
+        thumbnailContainer.appendChild(titleDuration);
+
+        // Create a container for buttons
+        const buttonsContainer = document.createElement('div');
+        buttonsContainer.style.position = 'absolute';
+        buttonsContainer.style.bottom = '5px'; // Align to bottom left
+        buttonsContainer.style.left = '5px'; 
+        buttonsContainer.style.display = 'flex';
+        buttonsContainer.style.flexDirection = 'row';
+        buttonsContainer.style.gap = '5px'; // Spacing between buttons
+
+        // Function to create and style a button
+        function createButton(iconName, videoId, objectId, actionFunction) {
+            const button = document.createElement('button');
+            button.className = "btn";
+            // TODO: Avoid these if clauses
+            if (iconName == 'play-circle') {
+                button.innerHTML = `{% bs_icon 'play-circle' size='1.0em' %}`;
+            } 
+            if (iconName == 'x-circle') {
+                button.innerHTML = `{% bs_icon 'x-circle' size='1.0em' %}`;
+            }
+            if (iconName == 'arrow-up-circle') {
+                button.innerHTML = `{% bs_icon 'arrow-up-circle' size='1.0em' %}`;
+            }
+            button.addEventListener('click', function() {
+                actionFunction(videoId, objectId);
+            });
+            button.style.backgroundColor = 'rgba(0, 0, 0, 0.5)'; // Semi-transparent background
+            button.style.border = 'none';
+            button.style.color = 'white';
+            button.style.width = '34px';
+            button.style.height = '34px';
+            button.style.padding = '5px';
+            button.style.borderRadius = '3px';
+            
+            // Hover effects
+            button.onmouseover = function() {
+                this.style.backgroundColor = 'white'; // Color on hover
+                this.style.color = 'black'; // Text color on hover
+            };
+            button.onmouseout = function() {
+                this.style.backgroundColor = 'rgba(0, 0, 0, 0.5)'; // Original color
+                this.style.color = 'white'; // Original text color
+            };
+            
+            return button;
+        }
+
+        // Define the button click handlers
+        function playVideo(videoId, objectId) {
+                $.ajax({
+                type:"GET",
+                url: "/set-vid-id",
+                data: {
+                    video_id: videoId
+                },
+                success: function( data ) {
+                    getPlaylist();
+                }
+            });
+            $.ajax({
+                type:"GET",
+                url: "/remove-vid-from-playlist",
+                data: {
+                    id: objectId
+                },
+                success: function( data ) {
+                    getPlaylist();
+                }
+            });
+        }
+        function deleteVideo(videoId, objectId) {
+            $.ajax({
+                type:"GET",
+                url: "/remove-vid-from-playlist",
+                data: {
+                    id: objectId
+                },
+                success: function( data ) {
+                    getPlaylist();
+                }
+            });
+        }
+        function moveToTop(videoId, objectId) {
+            $.ajax({
+                type:"GET",
+                url: "/move-vid-to-top-of-playlist",
+                data: {
+                    id: objectId
+                },
+                success: function( data ) {
+                    getPlaylist();
+                }
+            });
+        }
+
+        // Add buttons to the buttons container
+        const playButton = createButton('play-circle', v, id, playVideo);
+        const deleteButton = createButton('x-circle', v, id, deleteVideo);
+        const toTopButton = createButton('arrow-up-circle', v, id, moveToTop);
+
+        // Append buttons to their container
+        buttonsContainer.appendChild(playButton);
+        buttonsContainer.appendChild(deleteButton);
+        buttonsContainer.appendChild(toTopButton);
+
+        thumbnailContainer.appendChild(buttonsContainer);
+        contentDiv.appendChild(thumbnailContainer);
+        rowDiv.appendChild(contentDiv);
+        cardHeaderDiv.appendChild(rowDiv);
+        cardDiv.appendChild(cardHeaderDiv);
+        item.appendChild(cardDiv);
+        document.getElementById("playlist").appendChild(item);
+    }
+}
+
+// Send client playlist to server
+function sendPlaylist() {
+    let titles = document.querySelectorAll(".video-title");
+    let title_array = []
+    titles.forEach((item) => {
+        let cur = item.textContent;
+        cur = cur.replace('Next up:\n', '');
+        title_array.push(cur);
+    });
+    $.ajax({
+        type:"POST",
+        url: "/set-playlist-by-titles",
+        data: {
+            "titles": JSON.stringify(title_array)
+        },    success: function( ) {
+            console.log("SUCESS");
+            getPlaylist(force_rebuild=true);
+        }
+    });
+}
+
+// Client initialization
+window.addEventListener("load", () => {
+    var inputBox = document.getElementById("input-box");
+    inputBox.addEventListener("keydown", checkEnter);
+    var inputBoxButton = document.getElementById("input-box-button");
+    inputBoxButton.onclick = function() {
+        addVideoToPlaylist();
+    };
+    document.getElementsByTagName("html")[0].setAttribute("data-bs-theme","dark");
+    getPlaylist();
+    $("#menu-toggle").click(function(e) {
+        e.preventDefault();
+        $("#wrapper").toggleClass("toggled");
+    });
+    $(".sortable").sortable({
+        containerSelector: "ul.sortable",
+        itemSelector: "li.sort",
+        handle: ".handle",
+        placeholder:
+            '<li><div class="card bg-primary text-white mb-1"><div class="card-header">Move here</div></div></li>',
+        distance: 0,
+        onDrop: function($item) {
+            $item.attr("style", null).removeClass("dragged");
+            $("body").removeClass("dragging");
+            sendPlaylist();
+        }
+    });
+
+});
+
+// Check the enter key
+function checkEnter(event) {
+    if (event.keyCode == 13) {
+        addVideoToPlaylist();
+    }
+}
