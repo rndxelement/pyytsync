@@ -1,6 +1,3 @@
-// Define the URL of the pyytsync instance
-const pyytsync_url = 'https://<pyytsync-instance>';
-
 // Create a context menu item to allow users to send a video to pyytsync
 // This menu item appears when right-clicking on a link
 browser.contextMenus.create({
@@ -57,6 +54,16 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
     }
 });
 
+// Generates a system notification
+function genNotification(m) {
+    const title = "Notification from pyytsync extension";
+    browser.notifications.create({
+      type: "basic",
+      title,
+      message: m,
+    });
+}
+
 /**
  * Send a video to the pyytsync server.
  * This function sends a GET request to the server to add the video to a playlist.
@@ -64,9 +71,23 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
  * @param {string} videoTitle - The title of the YouTube video.
  */
 function sendToServer(videoId, videoTitle) {
-    const serverUrl = `${pyytsync_url}/add-vid-to-playlist?video_id=${videoId}&video_title=${encodeURIComponent(videoTitle)}`;
-    fetch(serverUrl)
-        .then(response => response.json())
-        .then(data => console.log(data))
-        .catch(error => console.error('Error:', error));
+    // Fetch URL from storage
+    browser.storage.local.get('pyytsync_url')
+        .then(data => {
+            const serverUrl = `${data.pyytsync_url || 'https://defaulturl.com'}/add-vid-to-playlist?video_id=${videoId}&video_title=${encodeURIComponent(videoTitle)}`;
+            console.log("Sending request to: " + serverUrl);
+            return fetch(serverUrl);
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok: ' + response.statusText);
+            }
+        })
+        .then(data => {
+            console.log("Server response:", data);
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            genNotification("Failed sending request to pyytsync instance. Error: " + error.message);
+        });
 }

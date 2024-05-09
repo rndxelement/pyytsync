@@ -1,16 +1,20 @@
 {
-  "manifest_version": 2,
+  "manifest_version": 3,
   "name": "Pyytsync extension",
-  "version": "1.0",
+  "version": "1.2",
   "description": "Send YouTube links to a pyytsync instance.",
-  "permissions": ["activeTab", "contextMenus",
-    "menus", "https://www.youtube.com/*",
-    "https://<pyytsync-instance>/*"],
+  "permissions": ["activeTab", "contextMenus", "storage", "notifications",
+    "contextMenus", "https://www.youtube.com/*",
+    "https://pyytsync.rndxelement.cloud/*"],
   "background": {
     "scripts": ["background.js"],
     "persistent": false
   },
   "browser_action": {
     "default_title": "Pyytsync extension"
+  },
+  "options_ui": {
+     "page": "options.html",
+     "open_in_tab": false
   }
 }
