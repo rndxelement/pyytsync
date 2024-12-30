@@ -16,7 +16,8 @@
 <script src="https://www.youtube.com/player_api?key={{ YOUTUBE_DATA_API_KEY }}"></script>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-sortable/0.9.13/jquery-sortable-min.js"></script>
-<script src="{% static 'sync/js/sync.js' %}"></script>
+
+{% include 'sync/js/sync.html' %}
 
 <div class="d-flex" id="wrapper">
     <div class="bg-dark vh-100" id="sidebar-wrapper">
