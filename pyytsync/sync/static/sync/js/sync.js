@@ -5,6 +5,7 @@ var prev_server_time = 0; // Most recently received server time
 var video_id; // Current video id
 var allowed_delta = 5.0; // Allowed time delta between client time and server time
 var updateInterval = 1000; // Interval between time and playlist updates in milliseconds
+const YOUTUBE_DATA_API_KEY = JSON.parse(document.getElementById('youtube_data_api_key').textContent);
 
 // Executed when the YouTube API is ready
 function onYouTubePlayerAPIReady() {
@@ -143,7 +144,7 @@ function addVideoToPlaylist() {
     var inputBox = document.getElementById("input-box");
     url = inputBox.value;
     let video_id = youtube_parser(url);
-    $.get("https://www.googleapis.com/youtube/v3/videos?part=snippet&id=" + video_id + "&key=" + "{{ YOUTUBE_DATA_API_KEY }}", function(data) {
+    $.get("https://www.googleapis.com/youtube/v3/videos?part=snippet&id=" + video_id + "&key=" + YOUTUBE_DATA_API_KEY, function(data) {
         let video_title = data.items[0].snippet.title;
         $.ajax({
             type:"GET",

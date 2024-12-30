@@ -10,6 +10,8 @@
 
 {% block bootstrap5_content %}
 
+{{ YOUTUBE_DATA_API_KEY | json_script:"youtube_data_api_key" }}
+
 <link rel="stylesheet" href="{{ STATIC_URL }}static/style.css" />
 <script src="https://www.youtube.com/player_api?key={{ YOUTUBE_DATA_API_KEY }}"></script>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
